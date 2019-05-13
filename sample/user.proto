@@ -1,0 +1,7 @@
+syntax = "proto2";
+package main;
+
+message User {
+	required string email = 1;
+	optional string display_name = 2;
+}
