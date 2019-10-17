@@ -12,7 +12,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/mux"
-	"github.com/jetrtc/jetlog"
+	log "github.com/jetrtc/log"
 )
 
 const (
@@ -29,7 +29,7 @@ type Session struct {
 	Context        context.Context
 	Request        *http.Request
 	ResponseWriter http.ResponseWriter
-	jetlog.Loggable
+	log.Loggable
 }
 
 func (s *Session) Decode(val interface{}) error {
@@ -171,14 +171,14 @@ func (rt *route) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type Server struct {
-	jetlog.Loggable
+	log.Loggable
 	jsonPrefix, jsonIndent string
 	middlewares            []MiddlewareFunc
 }
 
-func NewServer(logger jetlog.Logger) *Server {
+func NewServer(logger log.Logger) *Server {
 	return &Server{
-		Loggable: jetlog.Loggable{
+		Loggable: log.Loggable{
 			Logger: logger,
 		},
 		middlewares: make([]MiddlewareFunc, 0),

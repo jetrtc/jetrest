@@ -7,8 +7,8 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/mux"
-	"github.com/jetrtc/jetlog"
-	"github.com/jetrtc/jetrest"
+	"github.com/jetrtc/log"
+	"github.com/jetrtc/rest"
 )
 
 func main() {
@@ -17,7 +17,7 @@ func main() {
 
 func newHandler() http.Handler {
 	r := mux.NewRouter()
-	rest := jetrest.NewServer(jetlog.NewDefaultLogger(log.New(os.Stderr, "", log.LstdFlags)))
+	rest := rest.NewServer(log.NewDefaultLogger(log.New(os.Stderr, "", log.LstdFlags)))
 	r.Path("/user/{id:[a-z]+}").Handler(rest.HandlerFunc(UserHandler))
 	return r
 }
@@ -29,7 +29,7 @@ var users = map[string]*User{
 	},
 }
 
-func UserHandler(s *jetrest.Session) interface{} {
+func UserHandler(s *rest.Session) interface{} {
 	id := s.Var("id", "")
 	switch s.Request.Method {
 	case "GET":
