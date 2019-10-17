@@ -7,7 +7,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/mux"
-	"github.com/jetrtc/log"
+	jetlog "github.com/jetrtc/log"
 	"github.com/jetrtc/rest"
 )
 
@@ -17,7 +17,7 @@ func main() {
 
 func newHandler() http.Handler {
 	r := mux.NewRouter()
-	rest := rest.NewServer(log.NewDefaultLogger(log.New(os.Stderr, "", log.LstdFlags)))
+	rest := rest.NewServer(jetlog.NewDefaultLogger(log.New(os.Stderr, "", log.LstdFlags)))
 	r.Path("/user/{id:[a-z]+}").Handler(rest.HandlerFunc(UserHandler))
 	return r
 }
