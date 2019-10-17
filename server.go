@@ -1,4 +1,4 @@
-package jetrest
+package rest
 
 import (
 	"bytes"
@@ -12,7 +12,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/mux"
-	log "github.com/jetrtc/log"
+	"github.com/jetrtc/log"
 )
 
 const (
