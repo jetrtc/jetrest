@@ -2,7 +2,6 @@ package rest
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"io"
 	"io/ioutil"
@@ -25,11 +24,10 @@ var (
 )
 
 type Session struct {
+	log.Context
 	Status         int
-	Context        context.Context
 	Request        *http.Request
 	ResponseWriter http.ResponseWriter
-	log.Loggable
 }
 
 func (s *Session) Decode(val interface{}) error {
@@ -82,10 +80,14 @@ type route struct {
 func (rt *route) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s := &Session{
 		Status:         http.StatusOK,
-		Context:        r.Context(),
 		Request:        r,
 		ResponseWriter: w,
-		Loggable:       rt.server.Loggable,
+		Context: log.Context{
+			Loggable: log.Loggable{
+				Logger: rt.server.Loggable,
+			},
+			Context: r.Context(),
+		},
 	}
 	handler := rt.handlerFunc
 	for _, mw := range rt.server.middlewares {
