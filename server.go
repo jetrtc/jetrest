@@ -25,9 +25,26 @@ var (
 
 type Session struct {
 	*log.Context
-	Status         int
 	Request        *http.Request
-	ResponseWriter http.ResponseWriter
+	statusCode     int
+	responseWriter http.ResponseWriter
+}
+
+func (s *Session) Header() http.Header {
+	return s.responseWriter.Header()
+}
+
+func (s *Session) Write(data []byte) (int, error) {
+	return s.responseWriter.Write(data)
+}
+
+func (s *Session) WriteHeader(statusCode int) {
+	if s.statusCode == 0 {
+		s.responseWriter.WriteHeader(statusCode)
+		s.statusCode = statusCode
+	} else {
+		s.Warningf("Attemp to write header again: %d", statusCode)
+	}
 }
 
 func (s *Session) Decode(val interface{}) error {
@@ -80,9 +97,8 @@ type route struct {
 func (rt *route) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s := &Session{
 		Context:        log.NewContext(rt.server, r.Context()),
-		Status:         http.StatusOK,
 		Request:        r,
-		ResponseWriter: w,
+		responseWriter: w,
 	}
 	handler := rt.handlerFunc
 	for _, mw := range rt.server.middlewares {
@@ -97,7 +113,6 @@ func (rt *route) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			accept = ProtobufContentTypes[0]
 		}
 		w.Header().Set(ContentType, accept)
-		w.WriteHeader(s.Status)
 		data, err := proto.Marshal(v)
 		if err != nil {
 			s.Errorf("Failed to encode protobuf: %s", err.Error())
@@ -108,12 +123,11 @@ func (rt *route) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return err
 		}
-		s.Debugf("%s %s => %d: %s", r.Method, r.URL.Path, s.Status, accept)
+		s.Debugf("%s %s => %d: %s", r.Method, r.URL.Path, s.statusCode, accept)
 		return nil
 	}
 	writeJSON := func(v interface{}) error {
 		w.Header().Set(ContentType, JsonContentType)
-		w.WriteHeader(s.Status)
 		if rt.server.jsonIndent != "" || rt.server.jsonPrefix != "" {
 			data, err := json.MarshalIndent(v, rt.server.jsonPrefix, rt.server.jsonIndent)
 			if err != nil {
@@ -132,7 +146,7 @@ func (rt *route) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 		}
-		s.Debugf("%s %s => %d: %s", r.Method, r.URL.Path, s.Status, JsonContentType)
+		s.Debugf("%s %s => %d: %s", r.Method, r.URL.Path, s.statusCode, JsonContentType)
 		return nil
 	}
 	err := func() error {
@@ -146,18 +160,15 @@ func (rt *route) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					return writeJSON(v)
 				}
 			case string:
-				http.Error(w, v, s.Status)
-				s.Debugf("%s %s => %d: %s", r.Method, r.URL.Path, s.Status, v)
+				http.Error(w, v, s.statusCode)
+				s.Debugf("%s %s => %d: %s", r.Method, r.URL.Path, s.statusCode, v)
 			case error:
 				return v
 			default:
 				return writeJSON(v)
 			}
 		} else {
-			if s.Status != http.StatusOK {
-				w.WriteHeader(s.Status)
-			}
-			s.Debugf("%s %s => %d", r.Method, r.URL.Path, s.Status)
+			s.Debugf("%s %s => %d", r.Method, r.URL.Path, s.statusCode)
 		}
 		return nil
 	}()

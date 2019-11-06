@@ -19,6 +19,32 @@ type Auth interface {
 	Invalidate() error
 }
 
+type Response struct {
+	*http.Response
+	Body     []byte
+	protobuf bool
+}
+
+func (r *Response) Unmarshal(val interface{}) error {
+	var err error
+	protobuf := false
+	switch val := val.(type) {
+	case proto.Message:
+		if r.protobuf {
+			protobuf = true
+			err = proto.Unmarshal(r.Body, val)
+		} else {
+			err = json.Unmarshal(r.Body, val)
+		}
+	default:
+		err = json.Unmarshal(r.Body, val)
+	}
+	if err != nil && !protobuf && r.Response.Header.Get("Content-Type") != "application/json" {
+		err = fmt.Errorf("%s", r.Body)
+	}
+	return err
+}
+
 type Client struct {
 	log.Loggable
 	client   *http.Client
@@ -45,52 +71,51 @@ func (c *Client) Protobuf() *Client {
 	return c
 }
 
-func (c *Client) Get(url string, res interface{}) (int, string, error) {
-	return c.Request("GET", url, nil, res)
+func (c *Client) Get(url string) (*Response, error) {
+	return c.Request("GET", url, nil)
 }
 
-func (c *Client) Post(url string, req interface{}, res interface{}) (int, string, error) {
-	return c.Request("POST", url, req, res)
+func (c *Client) Post(url string, req interface{}) (*Response, error) {
+	return c.Request("POST", url, req)
 }
 
-func (c *Client) Put(url string, req interface{}, res interface{}) (int, string, error) {
-	return c.Request("PUT", url, req, res)
+func (c *Client) Put(url string, req interface{}) (*Response, error) {
+	return c.Request("PUT", url, req)
 }
 
-func (c *Client) Delete(url string, res interface{}) (int, string, error) {
-	return c.Request("DELETE", url, nil, res)
+func (c *Client) Delete(url string) (*Response, error) {
+	return c.Request("DELETE", url, nil)
 }
 
-func (c *Client) Request(method, url string, r interface{}, val interface{}) (int, string, error) {
+func (c *Client) Request(method, url string, r interface{}) (*Response, error) {
 	start := time.Now()
-	res, err := c.request(method, url, r, val)
+	res, err := c.request(method, url, r)
 	if err != nil {
-		return 0, "", err
+		return nil, err
 	}
 	if c.auth != nil {
-		valid, err := c.auth.Validate(res)
+		valid, err := c.auth.Validate(res.Response)
 		if err != nil {
 			c.Errorf("Failed to validate auth: %s", err.Error())
-			return 0, "", err
+			return nil, err
 		}
 		if !valid {
 			err = c.auth.Invalidate()
 			if err != nil {
 				c.Errorf("Failed to invalidate auth: %s", err.Error())
-				return 0, "", err
+				return nil, err
 			}
-			res, err = c.request(method, url, r, val)
+			res, err = c.request(method, url, r)
 			if err != nil {
-				return 0, "", err
+				return nil, err
 			}
 		}
 	}
-	reason := strings.TrimPrefix(res.Status, fmt.Sprintf("%d ", res.StatusCode))
 	c.Infof("Requested in %v: %s %s", time.Now().Sub(start), method, url)
-	return res.StatusCode, reason, nil
+	return res, nil
 }
 
-func (c *Client) request(method, url string, r interface{}, val interface{}) (*http.Response, error) {
+func (c *Client) request(method, url string, r interface{}) (*Response, error) {
 	var body []byte
 	var err error
 	protobuf := false
@@ -133,7 +158,7 @@ func (c *Client) request(method, url string, r interface{}, val interface{}) (*h
 		} else {
 			req.Header.Set("Content-Type", "application/json")
 		}
-	} else if val != nil {
+	} else {
 		if c.protobuf {
 			req.Header.Set("Accept", "application/protobuf")
 		} else {
@@ -152,36 +177,13 @@ func (c *Client) request(method, url string, r interface{}, val interface{}) (*h
 		c.Errorf("Failed to read body: %s", err.Error())
 		return nil, err
 	}
-	err = nil
-	if val != nil {
-		protobuf = false
-		switch val := val.(type) {
-		case proto.Message:
-			if c.protobuf {
-				protobuf = true
-				err = proto.Unmarshal(data, val)
-			} else {
-				err = json.Unmarshal(data, val)
-			}
-		default:
-			err = json.Unmarshal(data, val)
-		}
-		if err != nil && !protobuf && res.Header.Get("Content-Type") != "application/json" {
-			err = fmt.Errorf("%s", data)
-		}
-	}
-	if err != nil {
-		c.dumpResponse(res, data, nil)
-		c.Errorf("Failed to unmarshal: %s", err.Error())
-		return nil, err
-	} else {
-		c.dumpResponse(res, data, val)
-	}
-	if res.StatusCode >= 500 {
-		return nil, fmt.Errorf("Server error: %s", res.Status)
-	}
+	c.dumpResponse(res, data, nil)
 	res.Body = ioutil.NopCloser(bytes.NewBuffer(data))
-	return res, nil
+	return &Response{
+		Response: res,
+		Body:     data,
+		protobuf: c.protobuf,
+	}, nil
 }
 
 func (c *Client) dumpRequest(req *http.Request, v interface{}, data []byte) {
