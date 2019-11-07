@@ -19,6 +19,42 @@ type Auth interface {
 	Invalidate() error
 }
 
+type Request struct {
+	client *Client
+	url    *URL
+}
+
+func (r *Request) Join(path string) *Request {
+	r.url.Join(path)
+	return r
+}
+
+func (r *Request) Param(name, value string) *Request {
+	r.url.Param(name, value)
+	return r
+}
+
+func (r *Request) Do(method string, v interface{}) (*Response, error) {
+	url := r.url.Encode()
+	return r.client.Request(method, url, v)
+}
+
+func (r *Request) Get() (*Response, error) {
+	return r.Do("GET", nil)
+}
+
+func (r *Request) Post(v interface{}) (*Response, error) {
+	return r.Do("POST", v)
+}
+
+func (r *Request) Put(v interface{}) (*Response, error) {
+	return r.Do("PUT", v)
+}
+
+func (r *Request) Delete() (*Response, error) {
+	return r.Do("DELETE", nil)
+}
+
 type Response struct {
 	*http.Response
 	Body     []byte
@@ -69,6 +105,10 @@ func (c *Client) Auth(auth Auth) *Client {
 func (c *Client) Protobuf() *Client {
 	c.protobuf = true
 	return c
+}
+
+func (c *Client) New(u string) *Request {
+	return &Request{client: c, url: NewURL(u)}
 }
 
 func (c *Client) Get(url string) (*Response, error) {
