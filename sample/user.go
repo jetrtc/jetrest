@@ -35,7 +35,7 @@ func UserHandler(s *rest.Session) interface{} {
 	case "GET":
 		user := users[id]
 		if user == nil {
-			s.Status = 404
+			s.WriteHeader(404)
 			return nil
 		}
 		return user
@@ -43,18 +43,18 @@ func UserHandler(s *rest.Session) interface{} {
 		user := &User{}
 		err := s.Decode(user)
 		if err != nil {
-			s.Status = 400
+			s.WriteHeader(400)
 			return nil
 		}
 		users[id] = user
 	case "DELETE":
 		if users[id] == nil {
-			s.Status = 404
+			s.WriteHeader(404)
 			return nil
 		}
 		delete(users, id)
 	default:
-		s.Status = 405
+		s.WriteHeader(405)
 		return nil
 	}
 	return nil

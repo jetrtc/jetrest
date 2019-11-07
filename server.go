@@ -108,6 +108,9 @@ func (rt *route) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Body != nil {
 		defer io.Copy(ioutil.Discard, r.Body)
 	}
+	if s.statusCode == 0 {
+		s.statusCode = 200
+	}
 	writeProto := func(v proto.Message, accept string) error {
 		if accept == "" {
 			accept = ProtobufContentTypes[0]
