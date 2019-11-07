@@ -25,6 +25,7 @@ var (
 
 type Session struct {
 	*log.Context
+	Data           map[interface{}]interface{}
 	Request        *http.Request
 	statusCode     int
 	responseWriter http.ResponseWriter
@@ -97,6 +98,7 @@ type route struct {
 func (rt *route) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s := &Session{
 		Context:        log.NewContext(rt.server, r.Context()),
+		Data:           make(map[interface{}]interface{}),
 		Request:        r,
 		responseWriter: w,
 	}
