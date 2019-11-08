@@ -48,6 +48,10 @@ func (s *Session) WriteHeader(statusCode int) {
 	}
 }
 
+func (s *Session) ResponseWriter() http.ResponseWriter {
+	return s.responseWriter
+}
+
 func (s *Session) Decode(val interface{}) error {
 	switch v := val.(type) {
 	case proto.Message:
