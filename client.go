@@ -90,10 +90,8 @@ type Client struct {
 
 func NewClient(logger log.Logger, timeout time.Duration) *Client {
 	return &Client{
-		Loggable: log.Loggable{
-			Logger: logger,
-		},
-		client: &http.Client{Timeout: 5 * time.Second},
+		Loggable: log.NewLoggable(logger),
+		client:   &http.Client{Timeout: 5 * time.Second},
 	}
 }
 

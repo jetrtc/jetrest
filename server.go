@@ -24,7 +24,7 @@ var (
 )
 
 type Session struct {
-	*log.Context
+	log.Context
 	Data           map[interface{}]interface{}
 	Request        *http.Request
 	statusCode     int
@@ -101,7 +101,7 @@ type route struct {
 
 func (rt *route) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s := &Session{
-		Context:        log.NewContext(rt.server, r.Context()),
+		Context:        log.NewContext(r.Context(), rt.server),
 		Data:           make(map[interface{}]interface{}),
 		Request:        r,
 		responseWriter: w,
@@ -188,7 +188,7 @@ func (rt *route) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type Server struct {
-	*log.Loggable
+	log.Loggable
 	jsonPrefix, jsonIndent string
 	middlewares            []MiddlewareFunc
 }

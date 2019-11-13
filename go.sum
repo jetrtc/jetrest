@@ -2,5 +2,5 @@ github.com/golang/protobuf v1.3.2 h1:6nsPYzhq5kReh6QImI3k5qWzO4PEbvbIW2cwSfR/6xs
 github.com/golang/protobuf v1.3.2/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
 github.com/gorilla/mux v1.7.3 h1:gnP5JzjVOuiZD07fKKToCAOjS0yOpj/qPETTXCCS6hw=
 github.com/gorilla/mux v1.7.3/go.mod h1:1lud6UwP+6orDFRuTfBEV8e9/aOM/c4fVVCaMa2zaAs=
-github.com/jetrtc/log v1.1.1 h1:0f7jkIjm9uBfA1MqhZSFMXCnaVaE5l8Eg12foBwuikE=
-github.com/jetrtc/log v1.1.1/go.mod h1:WVaJtCNyaeSikMx3UWS91mrykuh7XepwMr6Z5M3Ct58=
+github.com/jetrtc/log v1.2.0 h1:n8PUKDPAgsbVbemvsuHAag8y/AxpFmqWG3iFj7icZUM=
+github.com/jetrtc/log v1.2.0/go.mod h1:WVaJtCNyaeSikMx3UWS91mrykuh7XepwMr6Z5M3Ct58=
