@@ -58,12 +58,18 @@ func (s *Session) Decode(val interface{}) error {
 		if isProto(contentType(s.Request)) {
 			data, err := ioutil.ReadAll(s.Request.Body)
 			if err != nil {
+				s.Errorf("Failed to read request body: %s", err.Error())
 				return err
 			}
-			return proto.Unmarshal(data, v)
+			err = proto.Unmarshal(data, v)
+			if err != nil {
+				s.Errorf("Failed to unmarshal proto request body: %s", err.Error())
+			}
+			return err
 		} else {
 			err := json.NewDecoder(s.Request.Body).Decode(v)
 			if err != nil {
+				s.Errorf("Failed to decode JSON request body: %s", err.Error())
 				return err
 			}
 			// valid data if decoded by json
