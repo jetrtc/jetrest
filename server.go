@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"reflect"
 	"strings"
@@ -29,6 +30,25 @@ type Session struct {
 	Request        *http.Request
 	statusCode     int
 	responseWriter http.ResponseWriter
+}
+
+func (s *Session) RemoteAddr() net.IP {
+	addr := s.Request.RemoteAddr
+	fwds := s.Request.Header["X-Forwarded-For"]
+	if fwds != nil {
+		fwd := fwds[0]
+		splits := strings.Split(fwd, ",")
+		addr = splits[0]
+	}
+	host, _, err := net.SplitHostPort(addr)
+	if err == nil {
+		addr = host
+	}
+	ip := net.ParseIP(addr)
+	if ip == nil {
+		s.Errorf("Failed to parse remote addr: %s => %s", addr, err.Error())
+	}
+	return ip
 }
 
 func (s *Session) Header() http.Header {
