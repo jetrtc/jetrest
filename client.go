@@ -70,12 +70,13 @@ func (r *Request) Delete() (*Response, error) {
 }
 
 type Response struct {
+	log.Loggable
 	*http.Response
 	Body     []byte
 	protobuf bool
 }
 
-func (r *Response) Unmarshal(val interface{}) error {
+func (r *Response) Decode(val interface{}) error {
 	var err error
 	protobuf := false
 	switch val := val.(type) {
@@ -98,6 +99,7 @@ func (r *Response) Unmarshal(val interface{}) error {
 type Client struct {
 	log.Loggable
 	client   *http.Client
+	URL      string
 	auth     Auth
 	protobuf bool
 }
@@ -205,7 +207,7 @@ func (c *Client) request(method string, header http.Header, url string, r interf
 			}
 		}
 	}
-	req, err := http.NewRequest(method, url, bytes.NewBuffer(body))
+	req, err := http.NewRequest(method, c.URL+url, bytes.NewBuffer(body))
 	if err != nil {
 		c.Errorf("Failed to create request: %s", err.Error())
 		return nil, err
@@ -239,7 +241,7 @@ func (c *Client) request(method string, header http.Header, url string, r interf
 			req.Header.Set("Accept", jsonContentType)
 		}
 	}
-	c.dumpRequest(req, body, isJson)
+	c.dumpRequest(req, body)
 	res, err := c.client.Do(req)
 	if err != nil {
 		c.Errorf("Failed to make request: %s", err.Error())
@@ -254,13 +256,14 @@ func (c *Client) request(method string, header http.Header, url string, r interf
 	c.dumpResponse(res, data)
 	res.Body = ioutil.NopCloser(bytes.NewBuffer(data))
 	return &Response{
+		Loggable: log.NewLoggable(c),
 		Response: res,
 		Body:     data,
 		protobuf: c.protobuf,
 	}, nil
 }
 
-func (c *Client) dumpRequest(req *http.Request, data []byte, isJson bool) {
+func (c *Client) dumpRequest(req *http.Request, data []byte) {
 	dump := &struct {
 		Method   string                 `json:"method"`
 		URL      string                 `json:"url"`
@@ -281,15 +284,8 @@ func (c *Client) dumpRequest(req *http.Request, data []byte, isJson bool) {
 			dump.Headers[k] = v
 		}
 	}
-	if isJson {
+	if data != nil && len(data) > 0 && strings.HasPrefix(req.Header.Get(contentTypeHeader), jsonContentType) {
 		dump.Body = json.RawMessage(data)
-		bytes, err := json.Marshal(dump)
-		if err == nil {
-			c.Debugf("%s", bytes)
-			return
-		} else {
-			dump.Body = data
-		}
 	}
 	bytes, err := json.Marshal(dump)
 	if err == nil {
@@ -316,16 +312,8 @@ func (c *Client) dumpResponse(res *http.Response, data []byte) {
 			dump.Headers[k] = v
 		}
 	}
-	ctype := res.Header.Get(contentTypeHeader)
-	if strings.HasPrefix(ctype, jsonContentType) {
+	if data != nil && len(data) > 0 && strings.HasPrefix(res.Header.Get(contentTypeHeader), jsonContentType) {
 		dump.Body = json.RawMessage(data)
-		bytes, err := json.Marshal(dump)
-		if err == nil {
-			c.Debugf("%s", bytes)
-			return
-		} else {
-			dump.Body = data
-		}
 	}
 	bytes, err := json.Marshal(dump)
 	if err == nil {
