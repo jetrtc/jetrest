@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"reflect"
 	"strings"
 
 	"github.com/golang/protobuf/proto"
@@ -79,7 +80,9 @@ func (s *Session) Decode(val interface{}) error {
 				s.Errorf("Failed to decode JSON request body: %s", err.Error())
 				return err
 			}
-			return nil
+			// to check 'required' props of proto2
+			_, err = proto.Marshal(v)
+			return err
 		}
 	default:
 		return json.NewDecoder(s.Request.Body).Decode(v)
@@ -100,18 +103,34 @@ func (s *Session) Encode(val interface{}) error {
 	}
 }
 
-func (s *Session) Status(code int) {
-	s.Statusf(code, http.StatusText(code))
+func (s *Session) Status(code int, v interface{}) error {
+	s.Debugf("Writing status code: %d")
+	s.ResponseWriter.WriteHeader(code)
+	if isNil(v) {
+		return nil
+	}
+	var msg string
+	switch v := v.(type) {
+	case string:
+		msg = v
+	case error:
+		msg = v.Error()
+	default:
+		return s.Encode(v)
+	}
+	s.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	s.ResponseWriter.Header().Set("X-Content-Type-Options", "nosniff")
+	s.Debugf("Writing text body: %s", msg)
+	_, err := fmt.Fprintln(s.ResponseWriter, msg)
+	return err
 }
 
-func (s *Session) Statusf(code int, format string, args ...interface{}) {
-	msg := fmt.Sprintf(format, args...)
-	s.Debugf("Writing status: %d \"%s\"", code, msg)
-	http.Error(s.ResponseWriter, msg, code)
+func (s *Session) StatusCode(code int) error {
+	return s.Status(code, http.StatusText(code))
 }
 
-func (s *Session) Error(err error) {
-	s.Statusf(500, err.Error())
+func (s *Session) Statusf(code int, format string, args ...interface{}) error {
+	return s.Status(code, fmt.Sprintf(format, args...))
 }
 
 func (s *Session) Vars() map[string]string {
@@ -149,8 +168,15 @@ func (s *Session) encodeProto(v proto.Message, accept string) error {
 }
 
 func (s *Session) encodeJSON(v interface{}) error {
+	// s.Debugf("encoing: %v", v)
 	s.ResponseHeader().Set(ContentType, JsonContentType)
-	data, err := json.MarshalIndent(v, s.server.jsonPrefix, s.server.jsonIndent)
+	var data []byte
+	var err error
+	if s.server.jsonPrefix != "" || s.server.jsonIndent != "" {
+		data, err = json.MarshalIndent(v, s.server.jsonPrefix, s.server.jsonIndent)
+	} else {
+		data, err = json.Marshal(v)
+	}
 	if err != nil {
 		s.Errorf("Failed to encode JSON: %s", err.Error())
 		return err
@@ -190,4 +216,8 @@ func accepts(types []string, accepts []string) string {
 		}
 	}
 	return ""
+}
+
+func isNil(v interface{}) bool {
+	return v == nil || (reflect.TypeOf(v).Kind() == reflect.Ptr && reflect.ValueOf(v).IsNil())
 }

@@ -1,55 +1,51 @@
 package main
 
 import (
-	"bytes"
-	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/jetrtc/log"
+	"github.com/jetrtc/rest"
 )
 
 func TestServer(t *testing.T) {
-	ts := httptest.NewServer(newHandler())
+	log := log.NewSugar(log.NewLogger(log.GoLogger(log.Debug, os.Stderr, "", log.LstdFlags)))
+	ts := httptest.NewServer(router(log))
 	defer ts.Close()
+	client := rest.NewClient(log, 5*time.Second)
+	client.URL = ts.URL
 
-	testREST(t, "GET", fmt.Sprintf("%s/user/alice", ts.URL), "", http.StatusOK, `{"email":"alice@foo.com","display_name":"Alice"}`)
-	testREST(t, "PUT", fmt.Sprintf("%s/user/bob", ts.URL), "", http.StatusMethodNotAllowed, "")
-	testREST(t, "GET", fmt.Sprintf("%s/user/bob", ts.URL), "", http.StatusNotFound, "")
-	testREST(t, "DELETE", fmt.Sprintf("%s/user/bob", ts.URL), "", http.StatusNotFound, "")
-	testREST(t, "POST", fmt.Sprintf("%s/user/bob", ts.URL), ``, http.StatusBadRequest, "")
-	testREST(t, "POST", fmt.Sprintf("%s/user/bob", ts.URL), `{}`, http.StatusBadRequest, "")
-	testREST(t, "POST", fmt.Sprintf("%s/user/bob", ts.URL), `{"display_name":"Bob"}`, http.StatusBadRequest, "")
-	testREST(t, "POST", fmt.Sprintf("%s/user/bob", ts.URL), `{"email":"bob@bar.com","display_name":"Bob"}`, http.StatusOK, "")
-	testREST(t, "GET", fmt.Sprintf("%s/user/bob", ts.URL), "", http.StatusOK, `{"email":"bob@bar.com","display_name":"Bob"}`)
-	testREST(t, "DELETE", fmt.Sprintf("%s/user/bob", ts.URL), "", http.StatusOK, "")
-	testREST(t, "GET", fmt.Sprintf("%s/user/bob", ts.URL), "", http.StatusNotFound, "")
+	testREST(t, client, "GET", "/user/alice", "", http.StatusOK, `{"email":"alice@foo.com","display_name":"Alice"}`)
+	testREST(t, client, "PUT", "/user/bob", "", http.StatusMethodNotAllowed, "")
+	testREST(t, client, "GET", "/user/bob", "", http.StatusNotFound, "")
+	testREST(t, client, "DELETE", "/user/bob", "", http.StatusNotFound, "")
+	testREST(t, client, "POST", "/user/bob", ``, http.StatusBadRequest, "")
+	testREST(t, client, "POST", "/user/bob", `{}`, http.StatusBadRequest, "")
+	testREST(t, client, "POST", "/user/bob", `{"display_name":"Bob"}`, http.StatusBadRequest, "")
+	testREST(t, client, "POST", "/user/bob", `{"email":"bob@bar.com","display_name":"Bob"}`, http.StatusOK, "")
+	testREST(t, client, "GET", "/user/bob", "", http.StatusOK, `{"email":"bob@bar.com","display_name":"Bob"}`)
+	testREST(t, client, "DELETE", "/user/bob", "", http.StatusOK, "")
+	testREST(t, client, "GET", "/user/bob", "", http.StatusNotFound, "")
 }
 
-func testREST(t *testing.T, method, url, json string, code int, expected string) {
-	req, err := http.NewRequest(method, url, bytes.NewBuffer([]byte(json)))
+func testREST(t *testing.T, client *rest.Client, method, url, reqJson string, code int, expected string) {
+	res, err := client.New(url).Do(method, []byte(reqJson))
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer res.Body.Close()
 	// Check the status code is what we expect.
-	if status := res.StatusCode; status != code {
-		t.Fatalf("%s %s returned wrong status code: got %v want %v", method, url, status, code)
+	if res.StatusCode != code {
+		t.Fatalf("%s %s returned wrong status code: got %v want %v", method, url, res.StatusCode, code)
 	}
 	if expected != "" {
-		data, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			t.Fatal(err)
-		}
-		json = strings.Trim(string(data), "\n")
+		resJson := strings.Trim(string(res.Body), "\n")
 		// Check the response body is what we expect.
-		if json != expected {
-			t.Fatalf("%s %s returned unexpected body: got %v want %v", method, url, json, expected)
+		if resJson != expected {
+			t.Fatalf("%s %s returned unexpected body: got %v want %v", method, url, resJson, expected)
 		}
 	}
 }

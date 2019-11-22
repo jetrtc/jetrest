@@ -70,7 +70,7 @@ func (r *Request) Delete() (*Response, error) {
 }
 
 type Response struct {
-	log.Loggable
+	log.Sugar
 	*http.Response
 	Body     []byte
 	protobuf bool
@@ -97,7 +97,7 @@ func (r *Response) Decode(val interface{}) error {
 }
 
 type Client struct {
-	log.Loggable
+	log.Sugar
 	client   *http.Client
 	URL      string
 	auth     Auth
@@ -106,8 +106,8 @@ type Client struct {
 
 func NewClient(logger log.Logger, timeout time.Duration) *Client {
 	return &Client{
-		Loggable: log.NewLoggable(logger),
-		client:   &http.Client{Timeout: 5 * time.Second},
+		Sugar:  log.NewSugar(logger),
+		client: &http.Client{Timeout: 5 * time.Second},
 	}
 }
 
@@ -188,6 +188,8 @@ func (c *Client) request(method string, header http.Header, url string, r interf
 		} else {
 			if r != nil {
 				switch r := r.(type) {
+				case json.RawMessage:
+					body = r
 				case proto.Message:
 					if c.protobuf {
 						protobuf = true
@@ -256,7 +258,7 @@ func (c *Client) request(method string, header http.Header, url string, r interf
 	c.dumpResponse(res, data)
 	res.Body = ioutil.NopCloser(bytes.NewBuffer(data))
 	return &Response{
-		Loggable: log.NewLoggable(c),
+		Sugar:    c.Sugar,
 		Response: res,
 		Body:     data,
 		protobuf: c.protobuf,

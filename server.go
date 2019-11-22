@@ -42,14 +42,14 @@ func (rt *route) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type Server struct {
-	log.Loggable
+	log.Sugar
 	jsonPrefix, jsonIndent string
 	middlewares            []MiddlewareFunc
 }
 
 func NewServer(logger log.Logger) *Server {
 	return &Server{
-		Loggable:    log.NewLoggable(logger),
+		Sugar:       log.NewSugar(logger),
 		middlewares: make([]MiddlewareFunc, 0),
 	}
 }

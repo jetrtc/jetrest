@@ -1,26 +1,9 @@
 package main
 
 import (
-	"log"
-	"net/http"
-	"os"
-
 	"github.com/golang/protobuf/proto"
-	"github.com/gorilla/mux"
-	jetlog "github.com/jetrtc/log"
 	"github.com/jetrtc/rest"
 )
-
-func main() {
-	log.Fatal(http.ListenAndServe("localhost:8080", newHandler()))
-}
-
-func newHandler() http.Handler {
-	r := mux.NewRouter()
-	rest := rest.NewServer(jetlog.NewDefaultLogger(log.New(os.Stderr, "", log.LstdFlags)))
-	r.Path("/user/{id:[a-z]+}").Handler(rest.HandlerFunc(UserHandler))
-	return r
-}
 
 var users = map[string]*User{
 	"alice": &User{
@@ -29,33 +12,34 @@ var users = map[string]*User{
 	},
 }
 
-func UserHandler(s *rest.Session) interface{} {
+func UserHandler(s *rest.Session) {
 	id := s.Var("id", "")
 	switch s.Request.Method {
 	case "GET":
 		user := users[id]
 		if user == nil {
-			s.WriteHeader(404)
-			return nil
+			s.Status(404, nil)
+			return
 		}
-		return user
+		s.Encode(user)
+		return
 	case "POST":
 		user := &User{}
 		err := s.Decode(user)
 		if err != nil {
-			s.WriteHeader(400)
-			return nil
+			s.Status(400, nil)
+			return
 		}
 		users[id] = user
 	case "DELETE":
 		if users[id] == nil {
-			s.WriteHeader(404)
-			return nil
+			s.Status(404, nil)
+			return
 		}
 		delete(users, id)
 	default:
-		s.WriteHeader(405)
-		return nil
+		s.Status(405, nil)
+		return
 	}
-	return nil
+	return
 }
