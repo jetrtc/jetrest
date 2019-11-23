@@ -104,7 +104,7 @@ func (s *Session) Encode(val interface{}) error {
 }
 
 func (s *Session) Status(code int, v interface{}) error {
-	s.Debugf("Writing status code: %d")
+	s.Debugf("Writing status code: %d", code)
 	s.ResponseWriter.WriteHeader(code)
 	if isNil(v) {
 		return nil
