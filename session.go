@@ -90,23 +90,21 @@ func (s *Session) Decode(val interface{}) error {
 	}
 }
 
-func (s *Session) encode(val interface{}) error {
+func (s *Session) encode(status int, val interface{}) error {
 	switch v := val.(type) {
 	case proto.Message:
 		accept := accepts(ProtobufContentTypes, s.RequestHeader()[Accept])
 		if isProto(contentType(s.Request)) || accept != "" {
-			return s.encodeProto(v, accept)
+			return s.encodeProto(status, v, accept)
 		} else {
-			return s.encodeJSON(v)
+			return s.encodeJSON(status, v)
 		}
 	default:
-		return s.encodeJSON(v)
+		return s.encodeJSON(status, v)
 	}
 }
 
-func (s *Session) Status(code int, v interface{}) error {
-	s.Debugf("Writing status code: %d", code)
-	s.ResponseWriter.WriteHeader(code)
+func (s *Session) Status(status int, v interface{}) error {
 	if isNil(v) {
 		return nil
 	}
@@ -117,10 +115,11 @@ func (s *Session) Status(code int, v interface{}) error {
 	case error:
 		msg = v.Error()
 	default:
-		return s.encode(v)
+		return s.encode(status, v)
 	}
 	s.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	s.ResponseWriter.Header().Set("X-Content-Type-Options", "nosniff")
+	s.writeHeader(status)
 	s.Debugf("Writing text body: %s", msg)
 	_, err := fmt.Fprintln(s.ResponseWriter, msg)
 	return err
@@ -149,7 +148,12 @@ func (s *Session) Var(key, preset string) string {
 	return val
 }
 
-func (s *Session) encodeProto(v proto.Message, accept string) error {
+func (s *Session) writeHeader(status int) {
+	s.Debugf("Writing header: %d", status)
+	s.ResponseWriter.WriteHeader(status)
+}
+
+func (s *Session) encodeProto(status int, v proto.Message, accept string) error {
 	if accept == "" {
 		accept = ProtobufContentTypes[0]
 	}
@@ -159,6 +163,7 @@ func (s *Session) encodeProto(v proto.Message, accept string) error {
 		s.Errorf("Failed to encode protobuf: %s", err.Error())
 		return err
 	}
+	s.writeHeader(status)
 	s.Debugf("Writing protobuf: %d bytes", len(data))
 	_, err = io.Copy(s.ResponseWriter, bytes.NewBuffer(data))
 	if err != nil {
@@ -168,7 +173,7 @@ func (s *Session) encodeProto(v proto.Message, accept string) error {
 	return nil
 }
 
-func (s *Session) encodeJSON(v interface{}) error {
+func (s *Session) encodeJSON(status int, v interface{}) error {
 	// s.Debugf("encoing: %v", v)
 	s.ResponseHeader().Set(ContentType, JsonContentType)
 	var data []byte
@@ -182,6 +187,7 @@ func (s *Session) encodeJSON(v interface{}) error {
 		s.Errorf("Failed to encode JSON: %s", err.Error())
 		return err
 	}
+	s.writeHeader(status)
 	s.Debugf("Writing JSON: %d bytes", len(data))
 	_, err = s.ResponseWriter.Write(data)
 	if err != nil {
