@@ -286,8 +286,13 @@ func (c *Client) dumpRequest(req *http.Request, data []byte) {
 			dump.Headers[k] = v
 		}
 	}
-	if data != nil && len(data) > 0 && strings.HasPrefix(req.Header.Get(contentTypeHeader), jsonContentType) {
-		dump.Body = json.RawMessage(data)
+	if data != nil && len(data) > 0 {
+		ctype := req.Header.Get(contentTypeHeader)
+		if strings.HasPrefix(ctype, jsonContentType) {
+			dump.Body = json.RawMessage(data)
+		} else if strings.HasPrefix(ctype, "text/") {
+			dump.Body = string(data)
+		}
 	}
 	bytes, err := json.Marshal(dump)
 	if err == nil {
@@ -314,8 +319,13 @@ func (c *Client) dumpResponse(res *http.Response, data []byte) {
 			dump.Headers[k] = v
 		}
 	}
-	if data != nil && len(data) > 0 && strings.HasPrefix(res.Header.Get(contentTypeHeader), jsonContentType) {
-		dump.Body = json.RawMessage(data)
+	if data != nil && len(data) > 0 {
+		ctype := res.Header.Get(contentTypeHeader)
+		if strings.HasPrefix(ctype, jsonContentType) {
+			dump.Body = json.RawMessage(data)
+		} else if strings.HasPrefix(ctype, "text/") {
+			dump.Body = string(data)
+		}
 	}
 	bytes, err := json.Marshal(dump)
 	if err == nil {
