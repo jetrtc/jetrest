@@ -172,40 +172,37 @@ func (c *Client) Request(method, url string, r interface{}) (*Response, error) {
 func (c *Client) request(method string, header http.Header, url string, r interface{}) (*Response, error) {
 	var body []byte
 	var err error
-	protobuf := false
-	isJson := false
-	switch v := r.(type) {
-	case io.Reader:
-		body, err = ioutil.ReadAll(v)
-		if err != nil {
-			c.Errorf("Failed to read request body: %s", err.Error())
-			return nil, err
-		}
-	default:
+	var ctype string
+	if !isNil(r) {
 		t := reflect.ValueOf(r)
 		if t.Kind() == reflect.Slice && t.Type() == reflect.TypeOf([]byte(nil)) {
 			body = r.([]byte)
 		} else {
-			if r != nil {
-				switch r := r.(type) {
-				case json.RawMessage:
-					body = r
-				case proto.Message:
-					if c.protobuf {
-						protobuf = true
-						body, err = proto.Marshal(r)
-					} else {
-						isJson = true
-						body, err = json.Marshal(r)
-					}
-				default:
-					isJson = true
-					body, err = json.Marshal(r)
-				}
+			switch r := r.(type) {
+			case io.Reader:
+				body, err = ioutil.ReadAll(r)
 				if err != nil {
-					c.Errorf("Failed to marshal: %s", err.Error())
+					c.Errorf("Failed to read request body: %s", err.Error())
 					return nil, err
 				}
+			case json.RawMessage:
+				ctype = jsonContentType
+				body = r
+			case proto.Message:
+				if c.protobuf {
+					ctype = protoContentType
+					body, err = proto.Marshal(r)
+				} else {
+					ctype = jsonContentType
+					body, err = json.Marshal(r)
+				}
+			default:
+				ctype = jsonContentType
+				body, err = json.Marshal(r)
+			}
+			if err != nil {
+				c.Errorf("Failed to marshal: %s", err.Error())
+				return nil, err
 			}
 		}
 	}
@@ -213,6 +210,9 @@ func (c *Client) request(method string, header http.Header, url string, r interf
 	if err != nil {
 		c.Errorf("Failed to create request: %s", err.Error())
 		return nil, err
+	}
+	if ctype != "" {
+		req.Header.Set(contentTypeHeader, ctype)
 	}
 	if header != nil {
 		for k, v := range header {
@@ -230,16 +230,10 @@ func (c *Client) request(method string, header http.Header, url string, r interf
 		}
 		c.auth = auth
 	}
-	if body != nil && len(body) > 0 {
-		if protobuf {
-			req.Header.Set(contentTypeHeader, protoContentType)
-		} else if isJson {
-			req.Header.Set(contentTypeHeader, jsonContentType)
-		}
-	} else {
+	if ctype == "" {
 		if c.protobuf {
 			req.Header.Set("Accept", protoContentType)
-		} else if isJson {
+		} else {
 			req.Header.Set("Accept", jsonContentType)
 		}
 	}

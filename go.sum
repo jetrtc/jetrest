@@ -34,8 +34,8 @@ github.com/gorilla/mux v1.7.3/go.mod h1:1lud6UwP+6orDFRuTfBEV8e9/aOM/c4fVVCaMa2z
 github.com/hashicorp/golang-lru v0.5.0/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ4Ao+sR/qLZy8=
 github.com/hashicorp/golang-lru v0.5.1 h1:0hERBMJE1eitiLkihrMvRVBYAkpHzc/J3QdDN+dAcgU=
 github.com/hashicorp/golang-lru v0.5.1/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ4Ao+sR/qLZy8=
-github.com/jetrtc/log v1.3.0 h1:vonU29jqAiPaPdtuI9O7cy0RUtULXHe5CveHYB2tULE=
-github.com/jetrtc/log v1.3.0/go.mod h1:vP528FW2ZKHI2gEz6FhVfMIdr7uUrqBEIEsfHsXZ5gw=
+github.com/jetrtc/log v1.3.2 h1:yQCBMxZEEBUgziaRAWqyMFIyoFw3v4DaDM6Pcg6wdm0=
+github.com/jetrtc/log v1.3.2/go.mod h1:A6snmXTzYk7LPjZ8ue2DnpwY6QMJOR1heMajzi8ev60=
 github.com/jstemmer/go-junit-report v0.0.0-20190106144839-af01ea7f8024/go.mod h1:6v2b51hI/fHJwM22ozAgKL4VKDeJcHhJFhtBdhmNjmU=
 go.opencensus.io v0.21.0/go.mod h1:mSImk1erAIZhrmZN+AvHh14ztQfjbGwt4TtuofqLduU=
 go.opencensus.io v0.22.0 h1:C9hSCOW830chIVkdja34wa6Ky+IzWllkUinR+BtRZd4=

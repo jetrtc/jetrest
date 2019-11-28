@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
-	"reflect"
 	"strings"
 
 	"github.com/golang/protobuf/proto"
@@ -17,6 +16,7 @@ import (
 )
 
 const (
+	Accept          = "Accept"
 	ContentType     = "Content-Type"
 	JsonContentType = "application/json"
 )
@@ -63,7 +63,8 @@ func (s *Session) ResponseHeader() http.Header {
 func (s *Session) Decode(val interface{}) error {
 	switch v := val.(type) {
 	case proto.Message:
-		if isProto(contentType(s.Request)) {
+		if isProto(contentType(s.Request)) ||
+			(s.Request.ContentLength <= 0 && isProto(accept(s.Request))) {
 			data, err := ioutil.ReadAll(s.Request.Body)
 			if err != nil {
 				s.Errorf("Failed to read request body: %s", err.Error())
@@ -89,10 +90,10 @@ func (s *Session) Decode(val interface{}) error {
 	}
 }
 
-func (s *Session) Encode(val interface{}) error {
+func (s *Session) encode(val interface{}) error {
 	switch v := val.(type) {
 	case proto.Message:
-		accept := accepts(ProtobufContentTypes, s.RequestHeader()["Accept"])
+		accept := accepts(ProtobufContentTypes, s.RequestHeader()[Accept])
 		if isProto(contentType(s.Request)) || accept != "" {
 			return s.encodeProto(v, accept)
 		} else {
@@ -116,7 +117,7 @@ func (s *Session) Status(code int, v interface{}) error {
 	case error:
 		msg = v.Error()
 	default:
-		return s.Encode(v)
+		return s.encode(v)
 	}
 	s.ResponseWriter.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	s.ResponseWriter.Header().Set("X-Content-Type-Options", "nosniff")
@@ -190,6 +191,10 @@ func (s *Session) encodeJSON(v interface{}) error {
 	return nil
 }
 
+func accept(r *http.Request) string {
+	return r.Header.Get(Accept)
+}
+
 func contentType(r *http.Request) string {
 	return r.Header.Get(ContentType)
 }
@@ -216,8 +221,4 @@ func accepts(types []string, accepts []string) string {
 		}
 	}
 	return ""
-}
-
-func isNil(v interface{}) bool {
-	return v == nil || (reflect.TypeOf(v).Kind() == reflect.Ptr && reflect.ValueOf(v).IsNil())
 }

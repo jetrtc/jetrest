@@ -21,7 +21,7 @@ func UserHandler(s *rest.Session) {
 			s.Status(404, nil)
 			return
 		}
-		s.Encode(user)
+		s.Status(200, user)
 		return
 	case "POST":
 		user := &User{}
